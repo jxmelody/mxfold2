@@ -25,6 +25,10 @@ class ZukerFold(AbstractFold):
             n_out_paired_layers = 3
             n_out_unpaired_layers = 0
             exclude_diag = False
+        elif model_type == "FM":
+            n_out_paired_layers = 3
+            n_out_unpaired_layers = 0
+            exclude_diag = False
         else:
             raise("not implemented")
 
@@ -46,13 +50,13 @@ class ZukerFold(AbstractFold):
         })
 
 
-    def forward(self, seq, **kwargs):
-        return super(ZukerFold, self).forward(seq, max_helix_length=self.max_helix_length, **kwargs)
+    def forward(self, seq, fm_embedding, **kwargs):
+        return super(ZukerFold, self).forward(seq, fm_embedding, max_helix_length=self.max_helix_length, **kwargs)
 
 
-    def make_param(self, seq):
+    def make_param(self, seq, fm_embedding):
         device = next(self.parameters()).device
-        score_paired, score_unpaired = self.net(seq)
+        score_paired, score_unpaired = self.net(seq, fm_embedding)
         B, N, _, _ = score_paired.shape
 
         def unpair_interval(su):

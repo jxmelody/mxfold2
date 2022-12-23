@@ -5,8 +5,10 @@ from argparse import ArgumentParser
 from .predict import Predict
 from .train import Train
 #from .show_param import ShowParam
+import collections
 
 default_conf = os.path.join(os.path.dirname(__file__), 'models', 'TrainSetAB.conf')
+RNA_SS_data = collections.namedtuple('RNA_SS_data', 'seq_list seq ss_label length name pairs embedding')
 
 def main():
     parser = ArgumentParser(

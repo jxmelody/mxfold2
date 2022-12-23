@@ -11,7 +11,8 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from .dataset import BPseqDataset
+from .dataset import BPseqDataset, RNASSDataGenerator, mxfold2Dataset
+import collections
 from .fold.mix import MixedFold
 from .fold.rnafold import RNAFold
 from .fold.zuker import ZukerFold
@@ -38,21 +39,23 @@ class Train:
         running_loss, n_running_loss = 0, 0
         start = time.time()
         with tqdm(total=n_dataset, disable=self.disable_progress_bar) as pbar:
-            for fnames, seqs, pairs in self.train_loader:
+            # for fnames, seqs, pairs in self.train_loader:
+            for fnames, seq_lists, pairs, fm_embedding in self.train_loader:
                 if self.verbose:
                     print()
                     print("Step: {}, {}".format(self.step, fnames))
                     self.step += 1
-                n_batch = len(seqs)
+                n_batch = len(seq_lists)
                 self.optimizer.zero_grad()
-                loss = torch.sum(self.loss_fn(seqs, pairs, fname=fnames))
+                loss = torch.sum(self.loss_fn(seq_lists, pairs, fm_embedding, fname=fnames))
                 loss_total += loss.item()
                 num += n_batch
                 if loss.item() > 0.:
                     loss.backward()
                     if self.verbose:
                         for n, p in self.model.named_parameters():
-                            print(n, torch.min(p).item(), torch.max(p).item(), torch.min(p.grad).item(), torch.max(p.grad).item())
+                            print(n, torch.min(p).item(), torch.max(p).item())
+                            # print(n, torch.min(p).item(), torch.max(p).item(), torch.min(p.grad).item(), torch.max(p.grad).item())
                     self.optimizer.step()
 
                 pbar.set_postfix(train_loss='{:.3e}'.format(loss_total / num))
@@ -154,6 +157,10 @@ class Train:
             from . import param_turner2004
             model = MixedFold(init_param=param_turner2004, model_type='C', **config)
 
+        elif args.model == 'MixC_FM':
+            from . import param_turner2004
+
+            model = MixedFold(init_param=param_turner2004, model_type='FM', **config)
         else:
             raise('not implemented')
 
@@ -212,12 +219,32 @@ class Train:
         if args.log_dir is not None and 'SummaryWriter' in globals():
             self.writer = SummaryWriter(log_dir=args.log_dir)
 
-        train_dataset = BPseqDataset(args.input)
-        self.train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
-        if args.test_input is not None:
-            test_dataset = BPseqDataset(args.test_input)
-            self.test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
+        train_data = RNASSDataGenerator('../data/', 'train')
+        val_data = RNASSDataGenerator('../data/', 'val')
+        # test_data = RNASSDataGenerator('../data/', 'test')
+
+        # train_dataset = BPseqDataset(args.input)
+        # self.train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+        # if args.test_input is not None:
+        #     test_dataset = BPseqDataset(args.test_input)
+        #     self.test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False)
+
+        # using the pytorch interface to parallel the data generation and model training
+
+        train_set = mxfold2Dataset(train_data)
+        self.train_loader = DataLoader(train_set, batch_size=1, shuffle=True)
+
+        val_set = mxfold2Dataset(val_data)
+        self.test_loader = DataLoader(val_set, batch_size=1, shuffle=False)
+
+        # # only for save the final results
+        # params = {'batch_size': 16,
+        #         'shuffle': False,
+        #         'num_workers': 6,
+        #         'drop_last': False}
+        # test_set = mxfold2Dataset(test_data)
+        # self.test_loader = DataLoader(test_set, **params)
         if args.seed >= 0:
             torch.manual_seed(args.seed)
             random.seed(args.seed)
@@ -247,8 +274,8 @@ class Train:
 
         for epoch in range(checkpoint_epoch+1, args.epochs+1):
             self.train(epoch)
-            if self.test_loader is not None:
-                self.test(epoch)
+            # if self.test_loader is not None:
+            self.test(epoch)
             if args.log_dir is not None:
                 self.save_checkpoint(args.log_dir, epoch)
 
@@ -264,7 +291,7 @@ class Train:
     def add_args(cls, parser):
         subparser = parser.add_parser('train', help='training')
         # input
-        subparser.add_argument('input', type=str,
+        subparser.add_argument('--input', type=str,
                             help='Training data of the list of BPSEQ-formatted files')
         subparser.add_argument('--test-input', type=str,
                             help='Test data of the list of BPSEQ-formatted files')

@@ -12,10 +12,10 @@ class MixedFold(AbstractFold):
         self.max_helix_length = max_helix_length
 
 
-    def forward(self, seq, return_param=False, param=None, return_partfunc=False,
+    def forward(self, seq, fm_embedding, return_param=False, param=None, return_partfunc=False,
             max_internal_length=30, constraint=None, reference=None,
             loss_pos_paired=0.0, loss_neg_paired=0.0, loss_pos_unpaired=0.0, loss_neg_unpaired=0.0):
-        param = self.make_param(seq) if param is None else param # reuse param or not
+        param = self.make_param(seq, fm_embedding) if param is None else param # reuse param or not
         ss = []
         preds = []
         pairs = []
@@ -62,7 +62,7 @@ class MixedFold(AbstractFold):
             return ss, preds, pairs
 
 
-    def make_param(self, seq):
+    def make_param(self, seq, fm_embedding):
         ts = self.turner.make_param(seq)
-        ps = self.zuker.make_param(seq)
+        ps = self.zuker.make_param(seq, fm_embedding)
         return [{'turner': t, 'positional': p} for t, p in zip(ts, ps)]

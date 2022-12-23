@@ -123,7 +123,7 @@ class PairedLayer(nn.Module):
         fc = []
         for m in fc_layers:
             fc += [
-                nn.Linear(n_in, m), 
+                nn.Linear(n_in+1, m), #XJ
                 nn.LayerNorm(m),
                 nn.CELU(), 
                 nn.Dropout(p=dropout_rate) ]
@@ -132,9 +132,13 @@ class PairedLayer(nn.Module):
         self.fc = nn.Sequential(*fc)
 
 
-    def forward(self, x):
+    def forward(self, x, fm_embedding):
+        # device = next(self.parameters()).device
+        # x = x.to(device)
+        # fm_embedding = fm_embedding.to(device)
         diag = 1 if self.exclude_diag else 0
-        B, N, _, C = x.shape
+        # print("x shape: ",x.shape)
+        B, N, _, C = x.shape # 1*l*l*d
         x = x.permute(0, 3, 1, 2)
         x_u = torch.triu(x.view(B*C, N, N), diagonal=diag).view(B, C, N, N)
         x_l = torch.tril(x.view(B*C, N, N), diagonal=-1).view(B, C, N, N)
@@ -146,6 +150,10 @@ class PairedLayer(nn.Module):
         x_u = torch.triu(x_u.view(B, -1, N, N), diagonal=diag)
         x_l = torch.tril(x_u.view(B, -1, N, N), diagonal=-1)
         x = x_u + x_l # (B, n_out, N, N)
+        # print("x shape: ",x.shape)
+        fm_embedding = torch.unsqueeze(fm_embedding, 1)
+        x = torch.cat((x, fm_embedding), dim=1).view(B, C+1, N, N)
+        # print("x shape: ",x.shape)
         x = x.permute(0, 2, 3, 1).view(B*N*N, -1)
         x = self.fc(x)
         return x.view(B, N, N, -1) # (B, N, N, n_out)
@@ -275,9 +283,12 @@ class NeuralNet(nn.Module):
             self.linear = nn.Linear(n_in, n_out_unpaired_layers)
 
 
-    def forward(self, seq):
+    def forward(self, seq, fm_embedding):
         device = next(self.parameters()).device
-        x = self.embedding(['0' + s for s in seq]).to(device) # (B, 4, N)
+        # print('NN shape ', seq.shape)
+        # x = self.embedding(['0' + s for s in seq]).to(device) # (B, 4, N+1)
+        x = self.embedding([s for s in seq]).to(device) # (B, 4, N)
+        # print('After NN shape ', x.shape)
         x = self.encoder(x)
 
         if self.no_split_lr:
@@ -290,7 +301,7 @@ class NeuralNet(nn.Module):
         if self.pair_join != 'bilinear':
             x_lr = self.transform2d(x_l, x_r)
 
-            score_paired = self.fc_paired(x_lr)
+            score_paired = self.fc_paired(x_lr, fm_embedding)
             if self.fc_unpaired is not None:
                 score_unpaired = self.fc_unpaired(x)
             else:

@@ -2,6 +2,148 @@ from itertools import groupby
 from torch.utils.data import Dataset
 import torch
 import math
+import _pickle as cPickle
+import numpy as np
+import os
+
+char_dict = {
+    0: 'A',
+    1: 'U',
+    2: 'C',
+    3: 'G'
+}
+
+def encoding2seq(arr):
+	seq = list()
+	for arr_row in list(arr):
+		if sum(arr_row)==0:
+			seq.append('.')
+		else:
+			seq.append(char_dict[np.argmax(arr_row)])
+	return ''.join(seq)
+
+
+class RNASSDataGenerator(object):
+    def __init__(self, data_dir, split):
+        self.data_dir = data_dir
+        self.split = split
+        # Load vocab explicitly when needed
+        self.load_data()
+        # Reset batch pointer to zero
+        self.batch_pointer = 0
+
+    def load_data(self):
+        #p = Pool()   # CJY
+        data_dir = './data/SPOT_RNA_500'
+        # Load the current split
+        print("data:", os.path.join(data_dir, '%s.pickle' % self.split))
+        with open(os.path.join(data_dir, '%s.pickle' % self.split), 'rb') as f:
+            self.data = cPickle.load(f)
+        self.data_x = np.array([instance.seq for instance in self.data])
+        self.data_y = np.array([instance.ss_label for instance in self.data])
+        self.pairs = np.array([instance.pairs for instance in self.data], dtype=object)
+        self.seq_length = np.array([instance.length for instance in self.data])
+        self.len = len(self.data)
+        self.name = np.array([instance.name for instance in self.data])
+        #self.seq = list(p.map(encoding2seq, self.data_x))
+        self.seq = list(map(encoding2seq, self.data_x))  # CJY
+        self.seq_list = np.array([instance.seq_list for instance in self.data])
+        self.seq_max_len = len(self.data_x[0])
+        self.embedding = [instance.embedding for instance in self.data]   #np.array([instance.embedding for instance in self.data])
+        self.embedding = np.array(self.embedding)
+        # self.matrix_rep = np.array(list(p.map(creatmat, self.seq)))
+        # self.matrix_rep = np.zeros([self.len, len(self.data_x[0]), len(self.data_x[0])])
+
+    def next_batch(self, batch_size):
+        bp = self.batch_pointer
+        # This will return a smaller size if not sufficient
+        # The user must pad the batch in an external API
+        # Or write a TF module with variable batch size
+        batch_x = self.data_x[bp:bp + batch_size]
+        batch_y = self.data_y[bp:bp + batch_size]
+        batch_seq_len = self.seq_length[bp:bp + batch_size]
+
+        self.batch_pointer += batch_size
+        if self.batch_pointer >= len(self.data_x):
+            self.batch_pointer = 0
+
+        yield batch_x, batch_y, batch_seq_len
+
+    def pairs2map(self, pairs):
+        seq_len = self.seq_max_len
+        contact = np.zeros([seq_len, seq_len])
+        for pair in pairs:
+            contact[pair[0], pair[1]] = 1
+        return contact
+
+    def next_batch_SL(self, batch_size):
+        # p = Pool()
+        bp = self.batch_pointer
+        # This will return a smaller size if not sufficient
+        # The user must pad the batch in an external API
+        # Or write a TF module with variable batch size
+        data_y = self.data_y[bp:bp + batch_size]
+        data_seq = self.data_x[bp:bp + batch_size]
+        data_pairs = self.pairs[bp:bp + batch_size]
+
+        self.batch_pointer += batch_size
+        if self.batch_pointer >= len(self.data_x):
+            self.batch_pointer = 0
+        contact = np.array(list(map(self.pairs2map, data_pairs)))
+        matrix_rep = np.zeros(contact.shape)
+        yield contact, data_seq, matrix_rep
+
+    def get_one_sample(self, index):
+
+        # This will return a smaller size if not sufficient
+        # The user must pad the batch in an external API
+        # Or write a TF module with variable batch size
+        data_y = self.data_y[index]
+        data_seq = self.seq[index] # padding to 500 length
+        # data_seq = self.seq_list[index] # no padding
+        data_len = self.seq_length[index]
+        data_pair = self.pairs[index]
+        fm_embedding = self.embedding[index]
+        contact= self.pairs2map(data_pair)
+        matrix_rep = np.zeros(contact.shape)
+        name = self.name[index]
+        # print(name, data_seq, torch.Tensor(data_pair).shape, fm_embedding.shape)
+        return name, data_seq, torch.Tensor(data_pair), fm_embedding
+
+
+    def random_sample(self, size=1):
+        # random sample one RNA
+        # return RNA sequence and the ground truth contact map
+        index = np.random.randint(self.len, size=size)
+        data = list(np.array(self.data)[index])
+        data_seq = [instance[0] for instance in data]
+        data_stru_prob = [instance[1] for instance in data]
+        data_pair = [instance[-1] for instance in data]
+        seq = list(map(encoding2seq, data_seq))
+        contact = list(map(self.pairs2map, data_pair))
+        return contact, seq, data_seq
+
+    def get_one_sample_cdp(self, index):
+        data_seq = self.data_x[index]
+        data_label = self.data_y[index]
+
+        return data_seq, data_label
+
+# using torch data loader to parallel and speed up the data load process
+class mxfold2Dataset(Dataset):
+  'Characterizes a dataset for PyTorch'
+  def __init__(self, data):
+        'Initialization'
+        self.data = data
+
+  def __len__(self):
+        'Denotes the total number of samples'
+        return self.data.len
+
+  def __getitem__(self, index):
+        'Generates one sample of data'
+        # Select sample
+        return self.data.get_one_sample(index)
 
 class FastaDataset(Dataset):
     def __init__(self, fasta):

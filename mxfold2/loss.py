@@ -17,11 +17,11 @@ class StructuredLoss(nn.Module):
         self.verbose = verbose
 
 
-    def forward(self, seq, pairs, fname=None):
-        pred, pred_s, _, param = self.model(seq, return_param=True, reference=pairs,
+    def forward(self, seq, pairs,fm_embedding, fname=None):
+        pred, pred_s, _, param = self.model(seq,fm_embedding, return_param=True, reference=pairs,
                                 loss_pos_paired=self.loss_pos_paired, loss_neg_paired=self.loss_neg_paired, 
                                 loss_pos_unpaired=self.loss_pos_unpaired, loss_neg_unpaired=self.loss_neg_unpaired)
-        ref, ref_s, _ = self.model(seq, param=param, constraint=pairs, max_internal_length=None)
+        ref, ref_s, _ = self.model(seq,fm_embedding, param=param, constraint=pairs, max_internal_length=None)
         l = torch.tensor([len(s) for s in seq], device=pred.device)
         loss = (pred - ref) / l
         if self.verbose:
