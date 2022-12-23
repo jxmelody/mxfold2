@@ -54,7 +54,8 @@ class Train:
                     loss.backward()
                     if self.verbose:
                         for n, p in self.model.named_parameters():
-                            print(n, torch.min(p).item(), torch.max(p).item())
+                            pass
+                            # print(n, torch.min(p).item(), torch.max(p).item())
                             # print(n, torch.min(p).item(), torch.max(p).item(), torch.min(p.grad).item(), torch.max(p.grad).item())
                     self.optimizer.step()
 

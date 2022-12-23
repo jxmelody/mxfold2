@@ -49,8 +49,7 @@ class RNASSDataGenerator(object):
         self.seq = list(map(encoding2seq, self.data_x))  # CJY
         self.seq_list = np.array([instance.seq_list for instance in self.data])
         self.seq_max_len = len(self.data_x[0])
-        self.embedding = [instance.embedding for instance in self.data]   #np.array([instance.embedding for instance in self.data])
-        self.embedding = np.array(self.embedding)
+        self.fm_embedding = np.array([instance.embedding for instance in self.data])   #np.array([instance.embedding for instance in self.data])
         # self.matrix_rep = np.array(list(p.map(creatmat, self.seq)))
         # self.matrix_rep = np.zeros([self.len, len(self.data_x[0]), len(self.data_x[0])])
 
@@ -75,23 +74,13 @@ class RNASSDataGenerator(object):
         for pair in pairs:
             contact[pair[0], pair[1]] = 1
         return contact
+    
+    def pairs2pairs(self, pairs):
+        new_pairs = [0,]
+        for pair in pairs:
+            new_pairs.append(int(pair[1]))
+        return new_pairs
 
-    def next_batch_SL(self, batch_size):
-        # p = Pool()
-        bp = self.batch_pointer
-        # This will return a smaller size if not sufficient
-        # The user must pad the batch in an external API
-        # Or write a TF module with variable batch size
-        data_y = self.data_y[bp:bp + batch_size]
-        data_seq = self.data_x[bp:bp + batch_size]
-        data_pairs = self.pairs[bp:bp + batch_size]
-
-        self.batch_pointer += batch_size
-        if self.batch_pointer >= len(self.data_x):
-            self.batch_pointer = 0
-        contact = np.array(list(map(self.pairs2map, data_pairs)))
-        matrix_rep = np.zeros(contact.shape)
-        yield contact, data_seq, matrix_rep
 
     def get_one_sample(self, index):
 
@@ -103,9 +92,10 @@ class RNASSDataGenerator(object):
         # data_seq = self.seq_list[index] # no padding
         data_len = self.seq_length[index]
         data_pair = self.pairs[index]
-        fm_embedding = self.embedding[index]
-        contact= self.pairs2map(data_pair)
-        matrix_rep = np.zeros(contact.shape)
+        data_pair = self.pairs2pairs(data_pair)
+        fm_embedding = self.fm_embedding[index]
+        # contact= self.pairs2map(data_pair)
+        # matrix_rep = np.zeros(contact.shape)
         name = self.name[index]
         # print(name, data_seq, torch.Tensor(data_pair).shape, fm_embedding.shape)
         return name, data_seq, torch.Tensor(data_pair), fm_embedding
