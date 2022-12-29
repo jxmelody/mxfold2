@@ -99,7 +99,7 @@ class RNASSDataGenerator(object):
         # matrix_rep = np.zeros(contact.shape)
         name = self.name[index]
         # print(name, data_seq, torch.Tensor(data_pair).shape, fm_embedding.shape)
-        return name, data_seq, torch.Tensor(data_pair)
+        return name, data_seq, torch.Tensor(data_pair).type(torch.IntTensor)
 
 
     def random_sample(self, size=1):
