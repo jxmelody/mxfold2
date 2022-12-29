@@ -40,14 +40,14 @@ class Train:
         start = time.time()
         with tqdm(total=n_dataset, disable=self.disable_progress_bar) as pbar:
             # for fnames, seqs, pairs in self.train_loader:
-            for fnames, seq_lists, pairs, fm_embedding in self.train_loader:
+            for fnames, seq_lists, pairs in self.train_loader:
                 if self.verbose:
                     print()
                     print("Step: {}, {}".format(self.step, fnames))
                     self.step += 1
                 n_batch = len(seq_lists)
                 self.optimizer.zero_grad()
-                loss = torch.sum(self.loss_fn(seq_lists, pairs, fm_embedding, fname=fnames))
+                loss = torch.sum(self.loss_fn(seq_lists, pairs, fname=fnames))
                 loss_total += loss.item()
                 num += n_batch
                 if loss.item() > 0.:

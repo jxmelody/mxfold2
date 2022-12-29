@@ -50,13 +50,13 @@ class ZukerFold(AbstractFold):
         })
 
 
-    def forward(self, seq, fm_embedding, **kwargs):
-        return super(ZukerFold, self).forward(seq, fm_embedding, max_helix_length=self.max_helix_length, **kwargs)
+    def forward(self, seq, **kwargs):
+        return super(ZukerFold, self).forward(seq, max_helix_length=self.max_helix_length, **kwargs)
 
 
-    def make_param(self, seq, fm_embedding):
+    def make_param(self, seq):
         device = next(self.parameters()).device
-        score_paired, score_unpaired = self.net(seq, fm_embedding)
+        score_paired, score_unpaired = self.net(seq)
         B, N, _, _ = score_paired.shape
 
         def unpair_interval(su):

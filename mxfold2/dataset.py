@@ -76,9 +76,9 @@ class RNASSDataGenerator(object):
         return contact
     
     def pairs2pairs(self, pairs, length):
-        new_pairs = np.zeros(length+1)
+        new_pairs = np.zeros(length+1, dtype=int)
         for pair in pairs:
-            new_pairs[pair[0]+1] = math.floor(pair[1]+1)
+            new_pairs[pair[0]+1] = pair[1]+1
         return new_pairs
 
 
@@ -99,7 +99,7 @@ class RNASSDataGenerator(object):
         # matrix_rep = np.zeros(contact.shape)
         name = self.name[index]
         # print(name, data_seq, torch.Tensor(data_pair).shape, fm_embedding.shape)
-        return name, data_seq, torch.Tensor(data_pair), fm_embedding
+        return name, data_seq, torch.Tensor(data_pair)
 
 
     def random_sample(self, size=1):
