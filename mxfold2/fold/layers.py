@@ -123,7 +123,7 @@ class PairedLayer(nn.Module):
         fc = []
         for m in fc_layers:
             fc += [
-                nn.Linear(n_in+1, m), #XJ
+                nn.Linear(n_in, m), #XJ add fm_embedding
                 nn.LayerNorm(m),
                 nn.CELU(), 
                 nn.Dropout(p=dropout_rate) ]
@@ -152,7 +152,7 @@ class PairedLayer(nn.Module):
         x = x_u + x_l # (B, n_out, N, N)
         # print("x shape: ",x.shape)
         fm_embedding = torch.unsqueeze(fm_embedding, 1)
-        x = torch.cat((x, fm_embedding), dim=1).view(B, C+1, N, N)
+        # x = torch.cat((x, fm_embedding), dim=1).view(B, C+1, N, N)
         # print("x shape: ",x.shape)
         x = x.permute(0, 2, 3, 1).view(B*N*N, -1)
         x = self.fc(x)
@@ -286,8 +286,8 @@ class NeuralNet(nn.Module):
     def forward(self, seq, fm_embedding):
         device = next(self.parameters()).device
         # print('NN shape ', seq.shape)
-        # x = self.embedding(['0' + s for s in seq]).to(device) # (B, 4, N+1)
-        x = self.embedding([s for s in seq]).to(device) # (B, 4, N)
+        x = self.embedding(['0' + s for s in seq]).to(device) # (B, 4, N+1)
+        # x = self.embedding([s for s in seq]).to(device) # (B, 4, N)
         # print('After NN shape ', x.shape)
         x = self.encoder(x)
 

@@ -28,7 +28,7 @@ class StructuredLoss(nn.Module):
             print("Loss = {} = ({} - {})".format(loss.item(), pred.item(), ref.item()))
             print("seq:", seq)
             print("pre:", pred_s)
-            print("gth:",ref_s)
+            print("gth:", ref_s)
             print(pairs)
         if loss.item()> 1e10 or torch.isnan(loss):
             print()

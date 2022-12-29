@@ -75,10 +75,10 @@ class RNASSDataGenerator(object):
             contact[pair[0], pair[1]] = 1
         return contact
     
-    def pairs2pairs(self, pairs):
-        new_pairs = [0,]
+    def pairs2pairs(self, pairs, length):
+        new_pairs = np.zeros(length+1)
         for pair in pairs:
-            new_pairs.append(int(pair[1]))
+            new_pairs[pair[0]+1] = math.floor(pair[1]+1)
         return new_pairs
 
 
@@ -88,11 +88,12 @@ class RNASSDataGenerator(object):
         # The user must pad the batch in an external API
         # Or write a TF module with variable batch size
         data_y = self.data_y[index]
-        data_seq = self.seq[index] # padding to 500 length
-        # data_seq = self.seq_list[index] # no padding
+        # data_seq = self.seq[index] # padding to 500 length
+        data_seq = self.seq_list[index] # no padding
         data_len = self.seq_length[index]
         data_pair = self.pairs[index]
-        data_pair = self.pairs2pairs(data_pair)
+        print(data_seq, data_pair)
+        data_pair = self.pairs2pairs(data_pair, len(data_seq))
         fm_embedding = self.fm_embedding[index]
         # contact= self.pairs2map(data_pair)
         # matrix_rep = np.zeros(contact.shape)
