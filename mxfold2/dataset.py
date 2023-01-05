@@ -94,12 +94,12 @@ class RNASSDataGenerator(object):
         data_pair = self.pairs[index]
         print(data_seq, data_pair)
         data_pair = self.pairs2pairs(data_pair, len(data_seq))
-        fm_embedding = self.fm_embedding[index]
+        fm_embedding = np.pad((self.fm_embedding[index][:data_len,:data_len]),((1,0),(1,0)),'constant', constant_values=0)
         # contact= self.pairs2map(data_pair)
         # matrix_rep = np.zeros(contact.shape)
         name = self.name[index]
-        # print(name, data_seq, torch.Tensor(data_pair).shape, fm_embedding.shape)
-        return name, data_seq, torch.Tensor(data_pair).type(torch.IntTensor)
+        print(name, data_seq, data_len, torch.Tensor(data_pair).shape, fm_embedding.shape)
+        return name, data_seq, torch.Tensor(data_pair).type(torch.IntTensor), fm_embedding
 
 
     def random_sample(self, size=1):
